@@ -1,43 +1,36 @@
-#!/usr/bin/env bash
-# =============================================================
-#  run.sh - Docker 컨테이너 안에서 게임 실행
-#  실행: bash scripts/run.sh
-# =============================================================
-set -e
+#!/bin/bash
+IMAGE="hellwase/team07-zombie-farm:1.0.0"
 
-SCRIPT_DIR=$(dirname "$0")
-cd "$SCRIPT_DIR/.."
-PROJECT_ROOT=$(pwd)
+echo "============================================="
+echo "  ZOMBIE FARM - Team 07"
+echo "============================================="
 
-IMAGE="chwoong/team_00_project:0.1.0"
-
-# 이미지 없으면 pull
-if ! docker image inspect "$IMAGE" &> /dev/null; then
-    echo "[run] Docker 이미지 다운로드 중... (최초 1회)"
-    docker pull "$IMAGE"
+if ! command -v docker &> /dev/null; then
+    echo "[오류] Docker가 설치되어 있지 않습니다."
+    echo "  -> https://docs.docker.com/get-docker/"
+    exit 1
 fi
 
-# OS별 디스플레이 설정
-OS="$(uname -s)"
-case "$OS" in
-    Linux*)
-        xhost +local:docker 2>/dev/null || true
-        DISPLAY_ENV="${DISPLAY:-:0}"
-        X11_OPTS="-e DISPLAY=$DISPLAY_ENV -v /tmp/.X11-unix:/tmp/.X11-unix"
-        ;;
-    Darwin*|MINGW*|MSYS*|CYGWIN*)
-        X11_OPTS="-e DISPLAY=host.docker.internal:0"
-        ;;
-    *)
-        X11_OPTS=""
-        ;;
-esac
+if ! docker image inspect "$IMAGE" &> /dev/null; then
+    echo "[정보] 이미지 다운로드 중... (최초 1회)"
+    docker pull --platform linux/amd64 "$IMAGE"
+fi
 
-echo "[run] 게임을 시작합니다..."
-docker run -it --rm \
+docker rm -f team07-farm 2>/dev/null || true
+
+echo "[정보] 게임 시작 중..."
+docker run -d \
     --platform linux/amd64 \
-    $X11_OPTS \
-    -v "$PROJECT_ROOT:/workspace" \
     --name team07-farm \
-    "$IMAGE" \
-    bash -c "cd /workspace && chmod +x ./build/main && ./build/main"
+    -p 6080:6080 \
+    "$IMAGE"
+
+sleep 3
+
+echo "============================================="
+echo "  브라우저에서 아래 주소를 열어주세요:"
+echo ""
+echo "  http://localhost:6080/vnc.html"
+echo ""
+echo "  종료: docker stop team07-farm"
+echo "============================================="
